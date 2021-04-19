@@ -48,8 +48,8 @@ ID = str(sys.argv[2])
 cfg = configparser.ConfigParser()
 cfg.read(cf_nm)
 D = dict(cfg['default'])
-D_o = dict(cfg['optional'])   # Optional configurations
-D_d = dict(cfg['data'])   # Optional configurations
+D_p = dict(cfg['parameters'])  
+D_d = dict(cfg['data']) 
 outPath = str(D['outpath'])    # Output directory to save mock galaxies
 drt = outPath+'/gal{0}'.format(ID)
 
@@ -71,7 +71,7 @@ X0 = dt.shape[1]/2.
 Y0 = dt.shape[0]/2.
 PA = np.random.uniform(0,180)   # in degree
 ell = np.random.uniform(0,0.75)
-n = np.random.uniform(0.4,2)
+n = np.random.uniform(0.5,2.5)
 Ms,M_CDF = np.load(str(D_o['m_bins'])),np.load(str(D_o['m_cdf']))
 M = get_sampled_continuous(Ms,M_CDF)
 # Sample effective radius using correlation with magnitude

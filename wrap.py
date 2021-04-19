@@ -4,8 +4,8 @@ import os
 import configparser
 
 cf_nm = str(sys.argv[1])
-Ni = int(sys.argv[2])
-Nf = int(sys.argv[3])
+Ni = int(sys.argv[2])   # Starting ID number for mock galaxies
+Nf = int(sys.argv[3])   # Ending ID number for mock galaxies
 
 # CONFIGURATION
 cfg = configparser.ConfigParser()
@@ -42,21 +42,6 @@ for N in range(Ni,Nf+1):
     print('Create model image, apply noise, convolve with PSF...\n')
     os.system('python gen_mock.py {0} {1}'.format(cf_nm,N))
     print('#####################################################################')
-    '''
-    print('Estimate background, create mask and generate conf. file for imfit...\n')
-    os.system('python pre_fit.py {0} {1} {2}'.format(point,bnd,N))
-    print('#####################################################################')
-    print('#####################################################################')
-    
-    print('Imfit profile fitting...\n')
-    os.system('python imfit.py {0} {1} {2} {3} {4}'.format(point,bnd,N,ncp,ftnm))
-    print('#####################################################################')
-    print('#####################################################################')
 
-    print('Computing total magnitude and surface brightness...\n')
-    os.system('python mags.py {0} {1} {2} {3} {4}'.format(point,bnd,N,ncp,ftnm))
-    print('#####################################################################')
-    print('#####################################################################')
-    '''
 t = time.time() - start_time
 print("--- {0} minutes ---".format(t/60.)) 

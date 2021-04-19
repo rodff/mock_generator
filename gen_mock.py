@@ -53,3 +53,4 @@ primary_hdu = fits.PrimaryHDU(header=hdr)
 hdu = fits.ImageHDU(data=mock,header=d_hdr)     # Check the do_not_scale_image_data thing
 hdul = fits.HDUList([primary_hdu,hdu])
 hdul.writeto('{0}/mock_gal{1}.fits'.format(drt,ID),overwrite=True)
+print('Saved at {0}/mock_gal{1}.fits'.format(drt,ID))
