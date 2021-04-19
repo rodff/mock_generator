@@ -3,6 +3,7 @@ from astropy.nddata import Cutout2D
 from astropy.wcs import WCS
 from astropy.coordinates import SkyCoord
 import numpy as np
+import configparser
 import sys
 
 point = str(sys.argv[1])
