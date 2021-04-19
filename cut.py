@@ -6,45 +6,51 @@ import numpy as np
 import configparser
 import sys
 
-point = str(sys.argv[1])
-bnd = str(sys.argv[2])
-ID = str(sys.argv[3])
+cf_nm = str(sys.argv[1])
+ID = str(sys.argv[2])
 
-# INPUT
-drt = 'point_{0}_{1}/gal_{2}'.format(point,bnd,ID)
-big_fn = '../../point_{0}_{1}.fits'.format(point,bnd)
-sz = 400
-weight = True
+# CONFIGURATION
+cfg = configparser.ConfigParser()
+cfg.read(cf_nm)
+D = dict(cfg['default'])
+D_o = dict(cfg['optional'])   # Optional configurations
 
-# Limits of predefined region on the pointing (in degrees)
-lim = np.loadtxt('point_{0}_{1}/coord_limits.dat'.format(point,bnd))
-ra_min,ra_max = np.min(lim[:,0]),np.max(lim[:,0])
-dec_min,dec_max = np.min(lim[:,1]),np.max(lim[:,1])
+sz = int(D['size'])     # Size of the cutout in pixels
+outPath = str(D['outpath'])    # Output directory to save mock galaxies
+big_fn = str(D['image'])    # Image used as background for the mock galaxies
+drt = outPath+'/gal{0}'.format(ID)
 
-# Generate random ra, dec inside predefined region on the pointing
+# Limits of predefined square region to create mocks (in degrees)
+ra_min,ra_max = float(D['ra_min']),float(D['ra_max'])
+dec_min,dec_max = float(D['dec_min']),float(D['dec_max'])
+
+# Generate random ra, dec inside predefined region 
 ra = np.random.uniform(ra_min,ra_max)
 dec = np.random.uniform(dec_min,dec_max)
-
 # Center of the cut in celestial coordinates
 pos = SkyCoord(ra,dec, unit='deg', frame='fk5')
 
 # Load big image
 hdul = fits.open(big_fn)
-
-# Locate tile
-for i in range(1,len(hdul)):
-    Twcs = WCS(hdul[i].header,hdul)
-    if(Twcs.footprint_contains(pos)):
-        Owcs = Twcs
-        data = hdul[i].data
-        Tn = i
-        print('Object in extension {0}'.format(Tn))
-        break
-    else:
-        pass
+if(str(D['multi_ext'])=='yes'):
+    # Locate extension with corresponding location
+    for i in range(1,len(hdul)):
+        Twcs = WCS(hdul[i].header,hdul)
+        if(Twcs.footprint_contains(pos)):
+            Owcs = Twcs
+            data = hdul[i].data
+            Tn = i
+            print('Object in extension {0}'.format(Tn))
+            break
+        else:
+            pass
+else:
+    Twcs = WCS(hdul[0].header,hdul)
+    data = hdul[0].data
 
 x,y = Owcs.all_world2pix(ra,dec,1)
 
+# While to force that the cut is entirely composed of valid pixels
 bool_cut = False
 while(bool_cut==False):
     try:
@@ -55,39 +61,43 @@ while(bool_cut==False):
         # Generate random ra, dec inside predefined region on the pointing
         ra = np.random.uniform(ra_min,ra_max)
         dec = np.random.uniform(dec_min,dec_max)
-
         # Center of the cut in celestial coordinates
         pos = SkyCoord(ra,dec, unit='deg', frame='fk5')
 
-        # Locate tile
-        for i in range(1,len(hdul)):
-            Twcs = WCS(hdul[i].header,hdul)
-            if(Twcs.footprint_contains(pos)):
-                Owcs = Twcs
-                data = hdul[i].data
-                Tn = i
-                print('Object in extension {0}'.format(Tn))
-                break
-            else:
-                pass
+        if(str(D['multi_ext'])=='yes'):
+            # Locate extension with corresponding location
+            for i in range(1,len(hdul)):
+                Twcs = WCS(hdul[i].header,hdul)
+                if(Twcs.footprint_contains(pos)):
+                    Owcs = Twcs
+                    data = hdul[i].data
+                    Tn = i
+                    print('Object in extension {0}'.format(Tn))
+                    break
+                else:
+                    pass
+        else:
+            Twcs = WCS(hdul[0].header,hdul)
+            data = hdul[0].data
 
         x,y = Owcs.all_world2pix(ra,dec,1)
 
-
-if(weight==True):
-    w_big_fn = '../../osw_point_{0}_{1}.fits'.format(point,bnd)
+# If a weight image is specified
+if('wht_image' in D_o):
+    w_big_fn = str(D_o['wht_image'])
     w_hdul = fits.open(w_big_fn)
     w_data = w_hdul[Tn].data
     w_cut = Cutout2D(w_data, (x,y), sz, mode='strict')
-    fits.writeto('{0}/wht_{1}_{2}.fits'.format(drt,ID,bnd),w_cut.data,overwrite=True)
+    fits.writeto('{0}/wht_gal{1}.fits'.format(drt,ID),w_cut.data,overwrite=True)
 else:
     pass
 
+# Just copying the header of the big image into the cutout
 hdr = fits.getheader(big_fn,ext=0)
-#d_hdr = hdul[Tn].header        # Problems using this header and matching WCS
 primary_hdu = fits.PrimaryHDU(header=hdr)
 hdu = fits.ImageHDU(data=cut.data)
 hdu.header['RA'] = ra
 hdu.header['DEC'] = dec
 hdul = fits.HDUList([primary_hdu,hdu])
-hdul.writeto('{0}/cut_{1}_{2}.fits'.format(drt,ID,bnd),overwrite=True)
+hdul.writeto('{0}/cut_gal{1}.fits'.format(drt,ID),overwrite=True)
+print('Saved at {0}/cut_gal{1}.fits'.format(drt,ID))

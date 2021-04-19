@@ -1,6 +1,7 @@
 from astropy.io import fits
 from scipy.special import gamma
 import numpy as np
+import configparser
 import sys
 
 def get_sampled_continuous(X,CDF):
@@ -40,22 +41,28 @@ def I_e(re,m,zpt,n,ell): # Using same equation of GALFIT Manual (eq. 3)
     Ie = 10**((zpt-m)*2/5.)/(2*np.pi*(re**2)*f(n)*(1-ell))
     return Ie
 
-point = str(sys.argv[1])
-bnd = str(sys.argv[2])
-ID = str(sys.argv[3])
+cf_nm = str(sys.argv[1])
+ID = str(sys.argv[2])
 
-# INPUT
-drt = 'point_{0}_{1}/gal_{2}'.format(point,bnd,ID)
-hdr = fits.getheader('{0}/cut_{1}_{2}.fits'.format(drt,ID,bnd))
-dt = fits.getdata('{0}/cut_{1}_{2}.fits'.format(drt,ID,bnd))
-zpt = float(hdr['MAGZERO'])
-dmod = 29.93    # Distance modulus for NGC 3115
-px_s = 0.27     # DECAM pixel scale
-pc_s = 46.94    # Parsec scale assuming distance modulus 29.93
+# CONFIGURATION
+cfg = configparser.ConfigParser()
+cfg.read(cf_nm)
+D = dict(cfg['default'])
+D_o = dict(cfg['optional'])   # Optional configurations
+D_d = dict(cfg['data'])   # Optional configurations
+outPath = str(D['outpath'])    # Output directory to save mock galaxies
+drt = outPath+'/gal{0}'.format(ID)
+
+hdr = fits.getheader('{0}/cut_gal{1}.fits'.format(drt,ID))
+dt = fits.getdata('{0}/cut_gal{1}.fits'.format(drt,ID))
+zpt =  float(D_d['mag_zpt'])
+dmod = float(D_d['dmod'])    # Distance modulus
+px_s = float(D_d['px_scale'])    # Pixel scale in arcsec/pixel
+pc_s = float(D_d['pc_scale'])    # Parsec scale in parsec/arcsec
 
 # SAVING RANDOM STATE
 np.random.seed()    # Set random state
-arq = open('{0}/seed_parameters.txt'.format(drt),'w')
+arq = open('{0}/seed_pars_gal{1}.txt'.format(drt,ID),'w')
 arq.write('{0}'.format(np.random.get_state())) 
 arq.close()
 
@@ -65,11 +72,7 @@ Y0 = dt.shape[0]/2.
 PA = np.random.uniform(0,180)   # in degree
 ell = np.random.uniform(0,0.75)
 n = np.random.uniform(0.4,2)
-'''
-Res,Re_CDF = np.load('Re_carlsten_2020.npy'),np.load('CDF_Re_carlsten_2020.npy')
-Re = get_sampled_continuous(Res,Re_CDF)
-'''
-Ms,M_CDF = np.load('M_g_carlsten_2020.npy'),np.load('CDF_M_g_carlsten_2020.npy')
+Ms,M_CDF = np.load(str(D_o['m_bins'])),np.load(str(D_o['m_cdf']))
 M = get_sampled_continuous(Ms,M_CDF)
 # Sample effective radius using correlation with magnitude
 Re =(10**logRe_pc(M))/px_s/pc_s
@@ -78,7 +81,7 @@ m = M+dmod  # Apparent magnitude
 Ie = I_e(Re,m,zpt,n,ell)  # Conversion to Ie
 
 # Save true parameters file
-arq = open('{0}/true_{1}_{2}.dat'.format(drt,ID,bnd),'w')
+arq = open('{0}/true_gal{1}.dat'.format(drt,ID),'w')
 arq.write('X0 \t {0} \n'.format(X0))
 arq.write('Y0 \t {0} \n'.format(Y0))
 arq.write('FUNCTION Sersic\n')
